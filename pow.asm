@@ -42,10 +42,24 @@ _start:
 
     mov RSI, base
     call _read_line
+    call _atoi
+    mov R12, RAX ; Store base in R12
+
+    mov RSI, MSG_EXP
+    mov RDX, LEN_EXP
+    call _print
+
+    mov RSI, expo
+    call _read_line
+    call _atoi
+    mov R13, RAX ; Store exponent in R13
+
+    call _pow
 
     mov RAX, 0x3C
     xor RDI, RDI
     syscall
+
 
 ; ---------------------
 ; Function: _print
@@ -57,6 +71,7 @@ _print:
     mov RDI, STD_OUT
     syscall
     ret
+
 
 ; ---------------------
 ; Function: _read_line
@@ -72,6 +87,7 @@ _read_line:
     mov byte [RSI + RAX - 1], NULL
     ret
 
+
 ; ---------------------
 ; Function: _atoi
 ; Convert ASCII string to integer
@@ -81,7 +97,10 @@ _read_line:
 _atoi:
     xor RAX, RAX ; Clear RAX for result
     xor RCX, RCX ; Clear RCX for digit count
+
 .next_digit:
+    cmp byte [RSI + RCX], '-' ; Check for negative sign
+    je .negative
     movzx RDX, byte [RSI + RCX] ; Load next byte
     cmp RDX, NULL ; Check for end of string
     je .done
@@ -92,5 +111,45 @@ _atoi:
     add RAX, RDX ; Add the digit to the result
     inc RCX ; Move to next character
     jmp .next_digit
+
+.negative:
+    mov R14, 1 ; Set negative flag
+    inc RCX ; Move past the negative sign
+
+.done:
+    cmp R14, 0 ; Check if negative flag is set
+    jne .apply_negative
+    ret
+
+.apply_negative:
+    neg RAX ; Negate the result if negative flag is set
+    ret
+
+; ---------------------
+; Function: _pow
+; Calculate base raised to the exponent
+; Input: R12 = base, R13 = exponent
+; Output: RAX = result
+; ---------------------
+_pow:
+    mov RAX, 1 ; Initialize result to 1
+    mov RCX, R13 ; Copy exponent to RCX for loop control
+    test R13, R13 ; Check if exponent is zero
+    jz .done ; If exponent is zero, return 1
+
+.loop:
+    cmp RCX, 0 ; Check if exponent is negative
+    jl .negative_exponent ; If negative, handle separately
+    imul RAX, R12 ; Multiply result by base
+    dec RCX ; Decrement control variable
+    jnz .loop ; Repeat until exponent is zero
+    jmp .done ; Jump to done
+
+.negative_exponent:
+    xor R15, R15
+    mov R15, 0x1 ; Flag for negative exponent
+    neg RCX ; Make exponent positive
+    jnz .loop ; Repeat until exponent is zero
+
 .done:
     ret
