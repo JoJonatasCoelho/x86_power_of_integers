@@ -27,6 +27,9 @@ section .data
     MSG_RES db "Result: ", NULL
     LEN_RES equ $ - MSG_RES
 
+    FRAC db "1/", NULL
+    LEN_FRAC equ $ - FRAC
+
 section .bss
     base resb 0x10
     expo resb 0x10 ; 16 bytes for base and exponent
