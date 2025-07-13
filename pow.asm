@@ -8,7 +8,6 @@
 
 segment .data
     LF equ 0xa ; Line fit
- ;   SYS_CALL equ 0x80 ; Make a syscall
     NULL equ 0x0 ; End string
     SYS_EXIT equ 0x1 ; Syscall to finish the process
     SYS_WRITE equ 0x1 ; Write
@@ -57,8 +56,38 @@ _start:
     call _atoi
     mov R13, RAX ; Store exponent in R13
 
-    call _pow
+    call _pow ; Store result in RAX
+    mov R14, RAX
+    mov R10, R15
 
+    mov RSI, MSG_RES
+    mov RDX, LEN_RES
+    call _print
+
+    cmp R10, 0x1 ; Check if exponent is negative
+    je .negative_exponent
+
+    mov RAX, R14 ; Move result to RAX for conversion
+    mov RSI, res ; Prepare to write result
+    call _itoa ; Convert result to string
+    jmp .print_result
+
+.negative_exponent:
+    mov RSI, FRAC
+    mov RDX, LEN_FRAC
+    call _print ; Print "1/"
+
+    mov RAX, R14 ; Move result to RAX for conversion
+    mov RSI, res ; Prepare to write result
+    call _itoa ; Convert result to string
+    jmp .print_result
+
+.print_result:
+    mov RDX, 0x20 ; Get length of result string
+    call _print ; Print the result
+    jmp .exit ; Exit the program
+
+.exit:
     mov RAX, 0x3C
     xor RDI, RDI
     syscall
@@ -100,24 +129,25 @@ _read_line:
 _atoi:
     xor RAX, RAX ; Clear RAX for result
     xor RCX, RCX ; Clear RCX for digit count
+    xor R14, R14 ; Clear R14 for negative flag
 
 .next_digit:
-    cmp byte [RSI + RCX], '-' ; Check for negative sign
-    je .negative
-    movzx RDX, byte [RSI + RCX] ; Load next byte
-    cmp RDX, NULL ; Check for end of string
-    je .done
-    sub RDX, '0' ; Convert ASCII to integer
-    cmp RDX, 0x9 ; Check if digit is valid
-    jae .done ; If not a digit, stop
-    imul RAX, RAX, 0xA ; Shift left by one decimal place
-    add RAX, RDX ; Add the digit to the result
-    inc RCX ; Move to next character
-    jmp .next_digit
+    cmp byte [RSI + RCX], '-'
+    jne .digit_loop
+    mov R14, 0x1
+    inc RCX
 
-.negative:
-    mov R14, 1 ; Set negative flag
-    inc RCX ; Move past the negative sign
+.digit_loop:
+    movzx RDX, byte [RSI + RCX]
+    cmp RDX, NULL
+    je .done
+    sub RDX, '0'
+    cmp RDX, 9
+    ja .done
+    imul RAX, RAX, 10
+    add RAX, RDX
+    inc RCX
+    jmp .digit_loop
 
 .done:
     cmp R14, 0 ; Check if negative flag is set
@@ -128,6 +158,7 @@ _atoi:
     neg RAX ; Negate the result if negative flag is set
     ret
 
+
 ; ---------------------
 ; Function: _pow
 ; Calculate base raised to the exponent
@@ -136,26 +167,31 @@ _atoi:
 ; ---------------------
 _pow:
     mov RAX, 1 ; Initialize result to 1
-    mov RCX, R13 ; Copy exponent to RCX for loop control
+    xor R15, R15 ; Clear R15 for negative exponent flag
+    mov R11, R13 ; Copy exponent to R14 for manipulation
     test R13, R13 ; Check if exponent is zero
     jz .done ; If exponent is zero, return 1
+    mov RCX, R13
+    cmp RCX, 0x0 ; Check if exponent is negative
+    jg .loop ; Jump to loop for exponentiation
+    neg RCX ; Make exponent positive
+    mov R15, 1 ; Set flag for negative exponent
 
 .loop:
-    cmp RCX, 0 ; Check if exponent is negative
-    jl .negative_exponent ; If negative, handle separately
     imul RAX, R12 ; Multiply result by base
     dec RCX ; Decrement control variable
     jnz .loop ; Repeat until exponent is zero
-    jmp .done ; Jump to done
 
-.negative_exponent:
-    xor R15, R15
-    mov R15, 0x1 ; Flag for negative exponent
-    neg RCX ; Make exponent positive
-    jnz .loop ; Repeat until exponent is zero
+    ; cmp R12, 0x0
+    ; jge .done
+
+    ; test R11, 0x1
+    ; jz .done ; If exponent is even, we are done
+    ; neg RAX ; If exponent is odd and base is negative, negate the result
 
 .done:
     ret
+
 
 ; ---------------------
 ; Function: _itoa
