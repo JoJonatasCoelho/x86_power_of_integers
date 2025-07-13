@@ -156,3 +156,56 @@ _pow:
 
 .done:
     ret
+
+; ---------------------
+; Function: _itoa
+; Convert integer to ASCII string
+; Input: RAX = integer value, RSI = pointer to buffer
+; Output: A string in the buffer pointed to by RSI
+; ---------------------
+_itoa:
+    mov RDI, RSI ; Copy buffer pointer to RDI (will be our write pointer)
+    mov RBX, 10  ; Divisor to extract digits
+    xor RCX, RCX ; RCX will be our digit counter
+
+    ; Handle the special case of the number being zero
+    cmp RAX, 0
+    jne .check_negative
+    mov byte [RDI], '0' ; Write '0' to the buffer
+    inc RDI
+    mov byte [RDI], NULL ; Null-terminate the string
+    ret
+
+.check_negative:
+    ; Check if the number is negative
+    test RAX, RAX
+    jns .division_loop ; If not negative, jump to the division loop
+
+    ; If it's negative:
+    mov byte [RDI], '-' ; Place the minus sign in the buffer
+    inc RDI             ; Advance the write pointer
+    neg RAX             ; Make the number in RAX positive for division
+
+.division_loop:
+    xor RDX, RDX  ; Zero out RDX, essential for the 64-bit DIV instruction
+    div RBX       ; Divide RDX:RAX by RBX (10). Quotient in RAX, remainder in RDX.
+    push RDX      ; Push the remainder (the digit) onto the stack
+    inc RCX       ; Increment the digit counter
+    test RAX, RAX ; Check if the quotient (RAX) is zero
+    jnz .division_loop ; If not zero, continue the loop
+
+.write_loop:
+    ; Now, pop the digits and write them to the buffer in the correct order
+    cmp RCX, 0
+    je .done ; If the counter is zero, we are done
+
+    pop RDX       ; Pop the digit from the stack
+    add DL, '0'   ; Convert the digit (0-9) to its ASCII character ('0'-'9')
+    mov [RDI], DL ; Write the character to the buffer
+    inc RDI       ; Advance the write pointer
+    dec RCX       ; Decrement the digit counter
+    jmp .write_loop
+
+.done:
+    mov byte [RDI], NULL ; Add the null terminator to the end of the string
+    ret
