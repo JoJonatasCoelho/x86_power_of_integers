@@ -168,7 +168,7 @@ _atoi:
 _pow:
     mov RAX, 1 ; Initialize result to 1
     xor R15, R15 ; Clear R15 for negative exponent flag
-    mov R11, R13 ; Copy exponent to R14 for manipulation
+    ; mov R11, R13 ; Copy exponent to R11 for manipulation
     test R13, R13 ; Check if exponent is zero
     jz .done ; If exponent is zero, return 1
     mov RCX, R13
